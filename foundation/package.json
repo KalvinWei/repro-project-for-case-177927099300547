@@ -1,0 +1,6 @@
+{
+  "name": "@repro/foundation",
+  "version": "0.0.1",
+  "private": true,
+  "main": "src/public-api.ts"
+}

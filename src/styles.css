@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* Minimal global styles to exercise Tailwind CSS v4 PostCSS pipeline */
+body {
+  @apply m-0 p-0 font-sans;
+}

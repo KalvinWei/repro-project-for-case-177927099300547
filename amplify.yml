@@ -1,0 +1,52 @@
+version: 1
+backend:
+    phases:
+        preBuild:
+            commands:
+                - nvm install 24
+                - nvm use 24
+                - npm install -g npm@latest
+        build:
+            commands:
+                - npm install --no-audit --no-fund --cache .npm --legacy-peer-deps || (cat .npm/_logs/*.log && exit 1)
+                - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
+frontend:
+    phases:
+        preBuild:
+            commands:
+                - nvm install 24
+                - nvm use 24
+                - npm install -g npm@latest
+                - echo "=== System Resources Before Install ==="
+                - free -h
+                - df -h
+                - npm install --no-audit --no-fund --cache .npm --legacy-peer-deps || (cat .npm/_logs/*.log && exit 1)
+                - export NODE_OPTIONS="--max-old-space-size=32768"
+                - node -e "const stats = v8.getHeapStatistics(); console.log('Heap limit:', Math.round(stats.heap_size_limit / 1024 / 1024), 'MB');"
+        build:
+            commands:
+                - echo "=== System Resources Before Build ==="
+                - free -h
+                - df -h
+                - echo "=== Container Process Limits ==="
+                - cat /proc/self/limits 2>/dev/null || echo "limits not available"
+                - ulimit -a
+                - echo "=== esbuild diagnostics ==="
+                - node_modules/.bin/esbuild --version 2>&1 || echo "FAILED top-level esbuild binary not executable"
+                - node -e "require('child_process').execSync(require('path').resolve('node_modules/@angular/build/node_modules/esbuild/bin/esbuild') + ' --version', {stdio:'inherit'})" 2>&1 || echo "FAILED Angular esbuild binary not executable"
+                - node -e "require('esbuild').build({entryPoints:['src/main.ts'],bundle:true,write:false,logLevel:'error'}).then(()=>console.log('esbuild standalone OK')).catch(e=>console.error('esbuild standalone FAIL',e.message))"
+                - echo "=== end esbuild diagnostics ==="
+                - echo "=== Running build with signal capture ==="
+                - node scripts/build-wrapper.js
+        postBuild:
+            commands:
+                - echo "=== System Resources After Build ==="
+                - free -h
+                - df -h
+    artifacts:
+        baseDirectory: dist/browser
+        files:
+            - '**/*'
+    cache:
+        paths:
+            - .npm/**/*
